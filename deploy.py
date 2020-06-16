@@ -17,17 +17,17 @@ def generate_index_html(files):
     text = f'<tbody>{text}</tbody>'
 
     # parse index.html
-    with open('./gh-pages/index.html', encoding='utf-8') as fp:
+    with open('./docs/index.html', encoding='utf-8') as fp:
         index_doc = fp.read()
     soup = BeautifulSoup(index_doc, 'html.parser')
     soup.find('tbody').replaceWith(BeautifulSoup(text, 'html.parser'))
     
     html = soup.prettify('utf-8')
-    with open('./gh-pages/index.html', 'w', encoding='utf-8') as fp:
+    with open('./docs/index.html', 'w', encoding='utf-8') as fp:
         fp.write(str(html, encoding='utf-8'))
 
 def convert_markdown_to_html(files):
-    with open('./gh-pages/template.html', encoding='utf-8') as fp:
+    with open('./docs/template.html', encoding='utf-8') as fp:
         template_doc = fp.read()
     template = BeautifulSoup(template_doc, 'html.parser')
     
@@ -38,7 +38,7 @@ def convert_markdown_to_html(files):
             ret = markdown.markdown(content, extensions=exts)
             ret = f'<main role="main"><div class="container">{ret}</div></main>'
             newname, _ = fp.split('.md')
-            newpath = f'./gh-pages/{newname}.html'
+            newpath = f'./docs/{newname}.html'
             template.find('title').replaceWith(BeautifulSoup(f'<title>{newname}</title>', 'html.parser'))
             template.find('main').replaceWith(BeautifulSoup(ret, 'html.parser'))
             html = template.prettify('utf-8')
