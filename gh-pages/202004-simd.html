@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>
+   202004-simd
+  </title>
+  <link crossorigin="anonymous" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" rel="stylesheet"/>
+  <style>
+   main .container {
+            overflow: auto;
+            height: 90vh;
+            margin-top: 20px;
+        }
+        footer {
+            height: 60px;
+            bottom: 0;
+            width: 100%;
+        }
+  </style>
+ </head>
+ <body>
+  <header>
+   <div class="navbar navbar-dark bg-dark shadow-sm">
+    <a class="navbar-brand" href="">
+     Tech Notes
+    </a>
+    <a class="navbar-brand" href="index.html">
+     Back to Index
+    </a>
+   </div>
+  </header>
+  <main role="main">
+   <div class="container">
+    <h1 id="simd">
+     SIMD
+    </h1>
+    <h6 id="author-chungyi-chi">
+     author:
+     <code>
+      Chungyi Chi
+     </code>
+    </h6>
+    <ul>
+     <li>
+      參考資料
+      <ul>
+       <li>
+        <a href="https://www.youtube.com/watch?v=oGwvMk5re3Y">
+         Lecture 14. SIMD (Vector Processors) - Carnegie Mellon - Comp. Arch. 2015 - Onur Mutlu
+        </a>
+        (
+        <a href="https://course.ece.cmu.edu/~ece740/f13/lib/exe/fetch.php?media=seth-740-fall13-module5.1-simd-vector-gpu.pdf">
+         pdf
+        </a>
+        )
+       </li>
+      </ul>
+     </li>
+    </ul>
+    <p>
+     我們一般有幾種 pattern 可以討論，根據 instruction &amp; piece of data 可以分為四種
+    </p>
+    <ul>
+     <li>
+      single instruction single data (MIPS, pipeline, out-of-order execution 亂序執行(優先執行下一條可以立即執行的指令))
+     </li>
+     <li>
+      single instruction multiple data
+      <ul>
+       <li>
+        array processor: at the same time using different space
+       </li>
+       <li>
+        vector processor: in consecutive time steps using the same space
+        <img alt="" src="https://i.imgur.com/fz3LrMo.png"/>
+       </li>
+      </ul>
+     </li>
+     <li>
+      multiple instrucion single data
+      <ul>
+       <li>
+        systolic array processor, streaming processor
+       </li>
+      </ul>
+     </li>
+     <li>
+      multiple instruction multiple data
+     </li>
+    </ul>
+    <p>
+     每種都有他的 knowhow ，我也不是很了解，總之今天討論的就是第三個 SIMD，其中有分成 array processor 跟 vector processor
+    </p>
+    <p>
+     (
+     <a href="https://youtu.be/oGwvMk5re3Y?t=1175">
+      19:35
+     </a>
+     )
+前者代表每個 processor 都有完整的運算單元，後者代表每個元件都只有一個運算能力，可以發現如果你用 cycle 去算，array processor 整體所消耗的 cycle 會是很驚人的，因為他這樣也不能作 pipeline，就只是單純的有 N 個 processor 一起作而已，而且每個 processor 都是 general purpose ，這樣八成就會慢了
+    </p>
+    <p>
+     他這邊想要跟 VLIW(very long instruction word) 作比較，這其實只是一個很直覺的名字，就是透過 compiler 組成一道超長的 instruction，並處理到沒有 data dependency 的問題，以下是 VLIW 的示意圖
+     <img alt="" src="https://i.imgur.com/j75ObAd.png"/>
+    </p>
+    <p>
+     看到目前為止，其實我們還是不知道 vector 用起來是什麼樣子，只知道他的定義以及跟 array processor 的差別
+    </p>
+    <p>
+     vector 指的就是你現在有一定的 register 數量，那假設我們有每個 register 有 32 bits，那假設一個 element 長度是 8 bit，那其實你一個 register 可以塞 4 個 element，這樣 load 一次就是等於原本的 load 4 次，以下讓我們從範例來理解他
+    </p>
+    <p>
+     <code>
+      clike=
+for(i=0; i&lt;=49; i++)
+    c[i] = (a[i] + b[i]) / 2
+     </code>
+    </p>
+    <p>
+     <img alt="" src="https://i.imgur.com/FfqCl46.png"/>
+    </p>
+    <p>
+     原本的程式寫成組語，會長得像這樣，每次都要一個一個 load，把東西搬到 register 中，因為只有一個 memory bank ，所以沒辦法把兩個 memory access 的指令作 pipeline
+    </p>
+    <p>
+     <img alt="" src="https://i.imgur.com/QsdTevO.png"/>
+    </p>
+    <p>
+     如果有 16 個 banks 就可以作 pipeline，這是在預防 memory latenct，(16&gt;11) 所以沒問題，那如果我們使用 vector 的概念呢
+    </p>
+    <p>
+     <img alt="" src="https://i.imgur.com/T8EZ2ot.png"/>
+     (
+     <a href="https://youtu.be/oGwvMk5re3Y?t=3302">
+      55:02
+     </a>
+     )
+    </p>
+    <p>
+     按照這個 pipeline 最後算出來的 cycle 只有 300 不到，跟原本幾千個 cycle 真的是天差地遠，以下讓我們看一下他每個 ISA 是在做些什麼
+    </p>
+    <ul>
+     <li>
+      VLEN 指的就是有 50 個東西要做加減乘除，要被丟到 vector register 裡
+     </li>
+     <li>
+      VSTR 則是指 vector strip，每個 element 在 vector register 之間的距離，就是 offset 的概念
+     </li>
+    </ul>
+    <p>
+     一開始我們要設定 vector 的長度，實際上各家的實作會有些差異，有些 SIMD 的指令是他一開始就把 ISA 寫死了，你要自己去找這對應 element 長度的 ISA，而 risc-v 的 v-extension 則是要自己去設定 vtype
+    </p>
+    <p>
+     strip 可以用以下兩個例子來理解，算是你一個 element 在 vector register 裡面到底要佔多寬，在 vector register 中，資料就是被這樣按照順序放好，所以才可以做到一個 instruction 影響 multiple data
+    </p>
+    <p>
+     假設我們有一個 $A = [0, 1, 2, 3, 4, 5, 6, 7, ...]$，這些例子表示 $A$ 在不同 stride 下被丟到 vector register 中是如何擺放
+* stride = 1
+$\left[\begin{array}{ccc}
+0 &amp; 1 &amp; 2 &amp; 3 &amp; 4 &amp; 5 &amp; 6 &amp; 7 \
+8 &amp; 9 &amp; 10 &amp; 11 &amp; 12 &amp; 13 &amp; 14 &amp; 15
+\end{array}\right]$
+    </p>
+    <ul>
+     <li>
+      stride = 2
+$\left[\begin{array}{ccc}
+0 &amp; 0 &amp; 1 &amp; 0 &amp; 2 &amp; 0 &amp; 3 &amp; 0 \
+4 &amp; 0 &amp; 5 &amp; 0 &amp; 6 &amp; 0 &amp; 7 &amp; 0
+\end{array}\right]$
+     </li>
+    </ul>
+    <p>
+     調整 strip 最主要的目的在於，讓我們可以對元素的操作不僅是 row ，也可以是一個一個 column 來操作，但實務上可不只是調整 strip，就算在同一個 vector register 中，都還可以簡單的幫資料做分群呢
+    </p>
+    <p>
+     看完 stride 之後，VLOAD / VADD / VSHIFT / VSTORE，從字面上就可以理解這些 instruction 的意義
+    </p>
+    <p>
+     我們不打算解釋硬體如何加速，如果有興趣理解的可以把影片接著看下去，了解 vector chaining(
+     <a href="https://youtu.be/oGwvMk5re3Y?t=3618">
+      1:00:18
+     </a>
+     ), data forward 等技術，我們把目標著重在 vector 如何使用
+    </p>
+    <ol>
+     <li>
+      如何在 vector 中處理 if-else 判斷式
+     </li>
+    </ol>
+    <p>
+     有一個 register 叫做 mask，我們一樣在 load/store 的部分，照常處理，但會根據 mask 來決定這個元素需不需要運算
+    </p>
+    <p>
+     <img alt="" src="https://i.imgur.com/1as2xNZ.png"/>
+     (
+     <a href="https://youtu.be/oGwvMk5re3Y?t=4334">
+      1:12:14
+     </a>
+     )
+    </p>
+    <p>
+     以這個例子來說如果 V0 中的元素不等於 0，他在 Mask 中就會被填 0，這樣在做 VMUL 的時候，VMUL 發現 MASK 對應的數值是 0，就不會有所動作
+    </p>
+    <p>
+     可以發現 SIMD 用非常暴力的方法解決 branch 的問題，還很有效...... 但等我們看到 GPU 的時候，會發現在處理 branch 的問題上他比 SIMD 還要暴力 .......
+    </p>
+    <ol>
+     <li>
+      當資料過於離散，不能用 stride 表示時，又該如何處理
+     </li>
+    </ol>
+    <p>
+     這要使用 Gather/Scatter 的模式來處理
+     <img alt="" src="https://i.imgur.com/V2ERSMy.png"/>
+     (
+     <a href="https://youtu.be/oGwvMk5re3Y?t=4078">
+      1:07:58
+     </a>
+     )
+    </p>
+    <p>
+     最後統整一下他所提到的 Vector 優點
+* No dependencies within a vector
+    * Pipelining, parallelization work well
+    * Can have very deep pipelines, no dependencies!
+* Each instruction generates a lot of work
+    * Reduces instruction fetch bandwidth
+*  Highly regular memory access pattern
+    * Interleaving multiple banks for higher memory bandwidth
+    * Prefetching
+    * 這邊看了會覺得很奇怪，要了解 stride 的概念
+     <img alt="" src="https://i.imgur.com/vfqD0YU.png"/>
+     stride 如果要 load column ，16 行 stride 就是 16，不然我們一般的 stride 應該是 1 ，這樣會一直在同一個 cacheline 上做 access，自然就會有很高的 memory hit rate
+* No need to explicitly code loops
+    * Fewer branches in the instruction sequence
+    * 這是使用 Mask 來實現且很暴力有效的方法
+    </p>
+    <ul>
+     <li>
+      延伸閱讀
+      <ul>
+       <li>
+        <a href="https://www.slideshare.net/WeiTaWang/simd-109492525">
+         快快樂樂SIMD
+        </a>
+        這篇比較了 intel 的 SSE 跟 Arm 的 Neon 的使用，以及你該怎麼寫程式，Compiler 才會自動幫你套用 vector 的指令
+    BTW CISC 跟 RISC 處理器在 SIMD ISA 使用上沒啥顯著差別，只是各家的 ISA 用起來不太一樣
+       </li>
+      </ul>
+     </li>
+    </ul>
+    <p>
+     我在這邊就不附上簡易實作了
+    </p>
+    <p>
+     ~~我在 risc-v 的公司工作，居然沒有 risc-v 的板子，要跑 v-extension 會有點麻煩，只能用模擬器跑，一整個就不爽寫XDD~~
+    </p>
+   </div>
+  </main>
+  <footer class="footer">
+   <div class="container">
+    <span class="text-muted">
+     Tech Notes © Chungyi Chi
+    </span>
+   </div>
+  </footer>
+ </body>
+</html>
