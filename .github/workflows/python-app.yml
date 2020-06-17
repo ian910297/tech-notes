@@ -31,9 +31,12 @@ jobs:
         python3 ./deploy.py
     - name: Deploy gh-pages
       run: |
-        git config --local user.name $USER_NAME
-        git config --local user.email $USER_EMAIL
-        git add .
-        git commit -m "deploy to Github pages"
-        git push
+        if [[ -n $(git status -s) ]]; then
+          git config --local user.name $USER_NAME
+          git config --local user.email $USER_EMAIL
+          git add .
+          git commit -m "deploy to Github pages"
+          git push
+        fi
+        
     
