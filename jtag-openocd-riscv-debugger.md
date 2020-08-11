@@ -1,5 +1,8 @@
 # JTAG & OPENOCD & RISC-V DEBUGGER
-###### tags: `Andes`
+
+[![hackmd-github-sync-badge](https://hackmd.io/uU3MIwpgSNmmJDh4iMY-Lw/badge)](https://hackmd.io/uU3MIwpgSNmmJDh4iMY-Lw)
+
+###### tags: `tech-note` `Andes`
 * 參考資料
     * RISCV SPEC
         * [Volume 1, Unprivileged Spec v. 20191213](https://riscv.org/specifications/isa-spec-pdf/)
