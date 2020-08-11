@@ -4,7 +4,15 @@
 name: Python application
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ master ]    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Convert markdown to html
+      run: |
+        echo "Hello, World!"
 # on:
 #   push:
 #     branches: [ master ]
